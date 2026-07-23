@@ -1,7 +1,8 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CompanyProfile } from "../types";
 import { exportData, importData, type BackupBundle } from "../lib/db";
 import { fmtDateTime } from "../lib/format";
+import { chooseFolder, forgetFolder, getFolderName, isFolderSaveSupported } from "../lib/fsAccess";
 import {
   backupToGist,
   connect as gistConnect,
@@ -25,6 +26,30 @@ export function SettingsPage({ profile, onSaveProfile, onRestored }: Props) {
   const [gist, setGist] = useState<GistStatus>(() => getGistStatus());
   const [token, setToken] = useState("");
   const [busy, setBusy] = useState(false);
+  const folderSupported = isFolderSaveSupported();
+  const [folderName, setFolderName] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (folderSupported) getFolderName().then(setFolderName);
+  }, [folderSupported]);
+
+  async function pickFolder() {
+    try {
+      const name = await chooseFolder();
+      if (name) {
+        setFolderName(name);
+        setMsg({ kind: "ok", text: `Invoices will save to "${name}".` });
+      }
+    } catch (e) {
+      setMsg({ kind: "err", text: `Could not set folder: ${(e as Error).message}` });
+    }
+  }
+
+  async function clearFolder() {
+    await forgetFolder();
+    setFolderName(null);
+    setMsg({ kind: "ok", text: "Save folder cleared." });
+  }
 
   function saveProfile() {
     onSaveProfile(form);
@@ -152,6 +177,32 @@ export function SettingsPage({ profile, onSaveProfile, onRestored }: Props) {
           {savedFlash && <span className="text-sm text-emerald-600">Saved.</span>}
         </div>
       </section>
+
+      {/* PDF save folder */}
+      {folderSupported && (
+        <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+          <h2 className="text-lg font-semibold text-slate-800">PDF save folder</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Choose a folder once, and the <span className="font-medium">Save to folder</span> button
+            on each invoice will save the PDF straight there — no download prompts. (Desktop
+            Chrome/Edge only.)
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <span className="text-sm text-slate-600">
+              Current folder:{" "}
+              <span className="font-medium">{folderName ? `"${folderName}"` : "not set"}</span>
+            </span>
+            <button onClick={pickFolder} className="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark">
+              {folderName ? "Change folder" : "Choose folder…"}
+            </button>
+            {folderName && (
+              <button onClick={clearFolder} className="rounded-md px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50">
+                Clear
+              </button>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* Cloud sync */}
       <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">

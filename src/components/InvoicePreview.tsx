@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { CompanyProfile, Customer, Invoice } from "../types";
 import { fmtDate, fmtMoney, invoiceTotals, round2 } from "../lib/format";
 import { buildInvoicePdf } from "../lib/pdf";
 import { downloadBlob, shareInvoice } from "../lib/share";
+import { getFolderName, isFolderSaveSupported, savePdfToFolder } from "../lib/fsAccess";
 
 interface Props {
   invoice: Invoice;
@@ -15,8 +16,39 @@ interface Props {
 export function InvoicePreview({ invoice, customer, company, onEdit, onBack }: Props) {
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  const [folderName, setFolderName] = useState<string | null>(null);
+  const folderSupported = isFolderSaveSupported();
   const totals = invoiceTotals(invoice);
   const currency = company.currency || "AUD";
+
+  useEffect(() => {
+    if (folderSupported) getFolderName().then(setFolderName);
+  }, [folderSupported]);
+
+  async function saveToFolder() {
+    setBusy("folder");
+    setMsg(null);
+    try {
+      const { blob, filename } = await buildInvoicePdf(invoice, customer, company);
+      const res = await savePdfToFolder(blob, filename, { promptIfMissing: true });
+      if (res.ok) {
+        setFolderName(res.folder);
+        setMsg({ kind: "ok", text: `Saved ${filename} to "${res.folder}".` });
+      } else if (res.reason === "cancelled") {
+        // user dismissed the folder picker; no message needed
+      } else if (res.reason === "denied") {
+        setMsg({ kind: "err", text: "Permission to write to that folder was denied." });
+      } else if (res.reason === "unsupported") {
+        setMsg({ kind: "err", text: "This browser can't save to a folder — use Download instead." });
+      } else {
+        setMsg({ kind: "err", text: `Could not save: ${res.error ?? "unknown error"}` });
+      }
+    } catch (e) {
+      setMsg({ kind: "err", text: `Could not save: ${(e as Error).message}` });
+    } finally {
+      setBusy(null);
+    }
+  }
 
   async function downloadPdf() {
     setBusy("pdf");
@@ -77,7 +109,17 @@ export function InvoicePreview({ invoice, customer, company, onEdit, onBack }: P
         >
           Edit
         </button>
-        <div className="ml-auto flex gap-2">
+        <div className="ml-auto flex flex-wrap gap-2">
+          {folderSupported && (
+            <button
+              onClick={saveToFolder}
+              disabled={!!busy}
+              className="rounded-md border border-brand px-3 py-2 text-sm font-semibold text-brand hover:bg-sky-50 disabled:opacity-50"
+              title={folderName ? `Saves into "${folderName}"` : "Choose a folder to save invoices into"}
+            >
+              {busy === "folder" ? "Saving…" : folderName ? `Save to ${folderName}` : "Save to folder…"}
+            </button>
+          )}
           <button
             onClick={downloadPdf}
             disabled={!!busy}

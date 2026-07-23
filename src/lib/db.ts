@@ -136,6 +136,22 @@ export async function deleteCustomer(id: string): Promise<void> {
   await db.delete("customers", id);
 }
 
+/** Remembered PDF-save folder handle (per device; never synced or exported). */
+export async function getPdfDir(): Promise<FileSystemDirectoryHandle | null> {
+  const db = await getDb();
+  return ((await db.get("meta", "pdfDir")) as FileSystemDirectoryHandle | undefined) ?? null;
+}
+
+export async function putPdfDir(handle: FileSystemDirectoryHandle): Promise<void> {
+  const db = await getDb();
+  await db.put("meta", handle, "pdfDir");
+}
+
+export async function clearPdfDir(): Promise<void> {
+  const db = await getDb();
+  await db.delete("meta", "pdfDir");
+}
+
 export async function getCompanyProfile(): Promise<CompanyProfile> {
   const db = await getDb();
   const p = (await db.get("meta", "companyProfile")) as CompanyProfile | undefined;
