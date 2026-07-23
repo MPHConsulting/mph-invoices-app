@@ -29,6 +29,21 @@ export function openGmailCompose({ to, subject, body }: Omit<ShareInvoiceArgs, "
   window.open(`https://mail.google.com/mail/?${params.toString()}`, "_blank", "noopener");
 }
 
+/** Whether this browser can share files via the native share sheet. */
+export function isNativeShareSupported(): boolean {
+  return typeof navigator !== "undefined" && typeof navigator.share === "function";
+}
+
+/**
+ * Email via Gmail: download the PDF and open a pre-filled Gmail compose window.
+ * Browsers can't attach a file to a compose URL, so the user attaches the
+ * just-downloaded PDF (one drag, or the paperclip) before sending.
+ */
+export function emailViaGmail({ blob, filename, to, subject, body }: ShareInvoiceArgs): void {
+  downloadBlob(blob, filename);
+  openGmailCompose({ to, subject, body });
+}
+
 /**
  * Share an invoice PDF by email.
  *

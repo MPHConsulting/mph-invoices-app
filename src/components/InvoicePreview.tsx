@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { CompanyProfile, Customer, Invoice } from "../types";
 import { fmtDate, fmtMoney, invoiceTotals, round2 } from "../lib/format";
 import { buildInvoicePdf } from "../lib/pdf";
-import { downloadBlob, shareInvoice } from "../lib/share";
+import { downloadBlob, emailViaGmail, isNativeShareSupported, shareInvoice } from "../lib/share";
 import { getFolderName, isFolderSaveSupported, savePdfToFolder } from "../lib/fsAccess";
 
 interface Props {
@@ -18,8 +18,21 @@ export function InvoicePreview({ invoice, customer, company, onEdit, onBack }: P
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [folderName, setFolderName] = useState<string | null>(null);
   const folderSupported = isFolderSaveSupported();
+  const shareSupported = isNativeShareSupported();
   const totals = invoiceTotals(invoice);
   const currency = company.currency || "AUD";
+
+  function buildEmail() {
+    const to = customer?.email ?? "";
+    const subject = `Invoice ${invoice.invoiceNo} from ${company.name}`;
+    const body =
+      `Hi ${customer?.contactName || customer?.companyName || "there"},\n\n` +
+      `Please find attached invoice ${invoice.invoiceNo}` +
+      (invoice.projectDescription ? ` for ${invoice.projectDescription}` : "") +
+      `, totalling ${fmtMoney(totals.total)} ${currency}.\n\n` +
+      `Kind regards,\n${company.name}`;
+    return { to, subject, body };
+  }
 
   useEffect(() => {
     if (folderSupported) getFolderName().then(setFolderName);
@@ -64,20 +77,29 @@ export function InvoicePreview({ invoice, customer, company, onEdit, onBack }: P
     }
   }
 
-  async function emailPdf() {
-    setBusy("email");
+  async function gmailPdf() {
+    setBusy("gmail");
     setMsg(null);
     try {
       const { blob, filename } = await buildInvoicePdf(invoice, customer, company);
-      const to = customer?.email ?? "";
-      const subject = `Invoice ${invoice.invoiceNo} from ${company.name}`;
-      const body =
-        `Hi ${customer?.contactName || customer?.companyName || "there"},\n\n` +
-        `Please find attached invoice ${invoice.invoiceNo}` +
-        (invoice.projectDescription ? ` for ${invoice.projectDescription}` : "") +
-        `, totalling ${fmtMoney(totals.total)} ${currency}.\n\n` +
-        `Kind regards,\n${company.name}`;
-      const result = await shareInvoice({ blob, filename, to, subject, body });
+      emailViaGmail({ blob, filename, ...buildEmail() });
+      setMsg({
+        kind: "ok",
+        text: `"${filename}" downloaded and Gmail opened — attach that file (paperclip) and send.`,
+      });
+    } catch (e) {
+      setMsg({ kind: "err", text: `Could not open Gmail: ${(e as Error).message}` });
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function sharePdf() {
+    setBusy("share");
+    setMsg(null);
+    try {
+      const { blob, filename } = await buildInvoicePdf(invoice, customer, company);
+      const result = await shareInvoice({ blob, filename, ...buildEmail() });
       if (result.method === "gmail") {
         setMsg({
           kind: "ok",
@@ -128,12 +150,22 @@ export function InvoicePreview({ invoice, customer, company, onEdit, onBack }: P
             {busy === "pdf" ? "Creating…" : "Download PDF"}
           </button>
           <button
-            onClick={emailPdf}
+            onClick={gmailPdf}
             disabled={!!busy}
             className="rounded-md bg-brand px-3 py-2 text-sm font-semibold text-white hover:bg-brand-dark disabled:opacity-50"
           >
-            {busy === "email" ? "Preparing…" : "Email invoice"}
+            {busy === "gmail" ? "Preparing…" : "Email via Gmail"}
           </button>
+          {shareSupported && (
+            <button
+              onClick={sharePdf}
+              disabled={!!busy}
+              className="rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              title="Open your device's share sheet (best on phone)"
+            >
+              {busy === "share" ? "Preparing…" : "Share…"}
+            </button>
+          )}
         </div>
       </div>
 
