@@ -208,7 +208,7 @@ export function InvoiceForm({
           <input
             value={projectDescription}
             onChange={(e) => setProjectDescription(e.target.value)}
-            placeholder="e.g. Navigation Logs"
+            placeholder="e.g. Consulting services"
             className={inputCls}
           />
         </Field>
