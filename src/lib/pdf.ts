@@ -29,8 +29,29 @@ async function loadLogo(): Promise<string | null> {
   return logoCache;
 }
 
-export function invoiceFileName(inv: Invoice): string {
-  return `MPH-Invoice-${inv.invoiceNo}.pdf`;
+/** Strip characters Windows/macOS forbid in filenames and tidy whitespace. */
+function sanitizeFilePart(s: string): string {
+  return s
+    .replace(/[\\/:*?"<>|]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\.+$/, "");
+}
+
+/** Zero-pad a "YYYY-N" invoice number to "YYYY-NN" so filenames sort correctly. */
+function padInvoiceNo(no: string): string {
+  const m = /^(\d{4})-(\d+)$/.exec(no.trim());
+  return m ? `${m[1]}-${m[2].padStart(2, "0")}` : no.trim();
+}
+
+/**
+ * PDF filename: "<Company Name> - <YYYY>-<NN>.pdf". Company first (so a folder
+ * groups by client) and the zero-padded number keeps each client's invoices in
+ * oldest-to-newest order.
+ */
+export function invoiceFileName(inv: Invoice, customer: Customer | null): string {
+  const company = sanitizeFilePart(customer?.companyName || inv.companyLabel || "Unknown");
+  return `${company} - ${padInvoiceNo(inv.invoiceNo)}.pdf`;
 }
 
 /** Build a styled PDF for an invoice and return it as a Blob + filename. */
@@ -202,7 +223,7 @@ export async function buildInvoicePdf(
   }
 
   const blob = doc.output("blob");
-  return { blob, filename: invoiceFileName(inv) };
+  return { blob, filename: invoiceFileName(inv, customer) };
 }
 
 function formatQty(q: number): string {
