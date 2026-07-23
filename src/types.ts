@@ -56,6 +56,8 @@ export interface CompanyProfile {
   bankDetails: string;
   paymentTerms: string;
   currency: string;
+  /** ISO timestamp of the last edit, used to resolve sync conflicts. */
+  updatedAt?: string;
 }
 
 export interface InvoicesMeta {

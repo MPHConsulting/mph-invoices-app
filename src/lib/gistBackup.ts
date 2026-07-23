@@ -1,5 +1,5 @@
 import { exportData, importData, type BackupBundle } from "./db";
-import type { Customer, Invoice } from "../types";
+import type { CompanyProfile, Customer, Invoice } from "../types";
 
 /**
  * Lightweight cloud sync backed by a single *private* GitHub Gist.
@@ -101,6 +101,18 @@ function score(r: { updatedAt?: number; createdAt?: number }): number {
   return r.updatedAt ?? r.createdAt ?? 0;
 }
 
+/** Pick the better company profile: newest edit wins; a filled-in profile beats a blank one. */
+function pickProfile(a?: CompanyProfile, b?: CompanyProfile): CompanyProfile | undefined {
+  if (!a) return b;
+  if (!b) return a;
+  const ta = a.updatedAt ? Date.parse(a.updatedAt) : 0;
+  const tb = b.updatedAt ? Date.parse(b.updatedAt) : 0;
+  if (ta !== tb) return ta > tb ? a : b;
+  const aFilled = (a.bankDetails ?? "").trim().length;
+  const bFilled = (b.bankDetails ?? "").trim().length;
+  return bFilled > aFilled ? b : a;
+}
+
 /** Union two bundles by record id; on a clash keep the most recently edited. */
 function mergeBundles(a: BackupBundle, b: BackupBundle): BackupBundle {
   const mergeInv = (x: Invoice[], y: Invoice[]): Invoice[] => {
@@ -123,7 +135,11 @@ function mergeBundles(a: BackupBundle, b: BackupBundle): BackupBundle {
     ...a,
     invoices: mergeInv(a.invoices ?? [], b.invoices ?? []),
     customers: mergeCust(a.customers ?? [], b.customers ?? []),
-    meta: { ...b.meta, ...a.meta },
+    meta: {
+      ...b.meta,
+      ...a.meta,
+      companyProfile: pickProfile(a.meta?.companyProfile, b.meta?.companyProfile),
+    },
     exportedAt: new Date().toISOString(),
   };
 }

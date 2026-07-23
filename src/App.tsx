@@ -129,8 +129,9 @@ export default function App() {
   }
 
   async function handleSaveProfile(p: CompanyProfile) {
-    await putCompanyProfile(p);
-    setProfile(p);
+    const stamped = { ...p, updatedAt: new Date().toISOString() };
+    await putCompanyProfile(stamped);
+    setProfile(stamped);
     scheduleAutoBackup();
   }
 
