@@ -1,0 +1,20 @@
+{
+  "meta": {
+    "generated": "",
+    "source": "empty seed (history lives in your private cloud sync)",
+    "numInvoices": 0,
+    "numCustomers": 0,
+    "numLineItems": 0
+  },
+  "companyProfile": {
+    "name": "MPH Consulting",
+    "addressLines": "160 Robinson Rd, #14-04\nSingapore Business Federation Centre\nSingapore 068914",
+    "phone": "",
+    "email": "",
+    "bankDetails": "",
+    "paymentTerms": "Total due in 30 days. Overdue accounts subject to a service charge of 5% per month.",
+    "currency": "AUD"
+  },
+  "customers": [],
+  "invoices": []
+}

@@ -1,0 +1,11 @@
+node_modules
+dist
+dist-ssr
+*.local
+.DS_Store
+.env
+.env.*
+*.tsbuildinfo
+
+# Private full invoice history (never published; lives in the private sync Gist)
+migration/invoices-full.json
