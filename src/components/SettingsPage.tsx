@@ -25,7 +25,25 @@ export function SettingsPage({ profile, onSaveProfile, onRestored }: Props) {
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [gist, setGist] = useState<GistStatus>(() => getGistStatus());
   const [token, setToken] = useState("");
+  const [showToken, setShowToken] = useState(false);
   const [busy, setBusy] = useState(false);
+
+  async function pasteToken() {
+    try {
+      const t = await navigator.clipboard.readText();
+      if (t && t.trim()) {
+        setToken(t.trim());
+        setMsg({ kind: "ok", text: "Token pasted from clipboard." });
+      } else {
+        setMsg({ kind: "err", text: "Clipboard is empty — copy your token again first." });
+      }
+    } catch {
+      setMsg({
+        kind: "err",
+        text: "Couldn't read the clipboard. Tap the box, then choose Paste from the popup, or type it in.",
+      });
+    }
+  }
   const folderSupported = isFolderSaveSupported();
   const [folderName, setFolderName] = useState<string | null>(null);
 
@@ -267,17 +285,32 @@ export function SettingsPage({ profile, onSaveProfile, onRestored }: Props) {
             </ol>
             <div className="flex flex-col gap-2 sm:flex-row">
               <input
-                type="password"
+                type={showToken ? "text" : "password"}
                 value={token}
                 onChange={(e) => setToken(e.target.value)}
                 placeholder="Paste GitHub token"
                 autoComplete="off"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
                 className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
               />
-              <button onClick={connect} disabled={busy || !token.trim()} className="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark disabled:opacity-50">
-                Connect
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={pasteToken}
+                  className="rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  Paste
+                </button>
+                <button onClick={connect} disabled={busy || !token.trim()} className="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark disabled:opacity-50">
+                  Connect
+                </button>
+              </div>
             </div>
+            <label className="flex items-center gap-2 text-sm text-slate-600">
+              <input type="checkbox" checked={showToken} onChange={(e) => setShowToken(e.target.checked)} />
+              Show token
+            </label>
           </div>
         )}
       </section>
