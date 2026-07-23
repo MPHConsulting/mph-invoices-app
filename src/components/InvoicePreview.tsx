@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { CompanyProfile, Customer, Invoice } from "../types";
 import { fmtDate, fmtMoney, invoiceTotals, round2 } from "../lib/format";
 import { buildInvoicePdf } from "../lib/pdf";
-import { downloadBlob, emailViaGmail, isNativeShareSupported, shareInvoice } from "../lib/share";
+import { downloadBlob, emailViaGmail } from "../lib/share";
 import { getFolderName, isFolderSaveSupported, savePdfToFolder } from "../lib/fsAccess";
 
 interface Props {
@@ -18,7 +18,6 @@ export function InvoicePreview({ invoice, customer, company, onEdit, onBack }: P
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [folderName, setFolderName] = useState<string | null>(null);
   const folderSupported = isFolderSaveSupported();
-  const shareSupported = isNativeShareSupported();
   const totals = invoiceTotals(invoice);
   const currency = company.currency || "AUD";
 
@@ -94,27 +93,6 @@ export function InvoicePreview({ invoice, customer, company, onEdit, onBack }: P
     }
   }
 
-  async function sharePdf() {
-    setBusy("share");
-    setMsg(null);
-    try {
-      const { blob, filename } = await buildInvoicePdf(invoice, customer, company);
-      const result = await shareInvoice({ blob, filename, ...buildEmail() });
-      if (result.method === "gmail") {
-        setMsg({
-          kind: "ok",
-          text: "PDF downloaded and Gmail opened — attach the downloaded file and send.",
-        });
-      } else if (result.method === "share") {
-        setMsg({ kind: "ok", text: "Shared — pick your email app to send it." });
-      }
-    } catch (e) {
-      setMsg({ kind: "err", text: `Could not share: ${(e as Error).message}` });
-    } finally {
-      setBusy(null);
-    }
-  }
-
   return (
     <div className="space-y-4">
       {/* Action bar */}
@@ -156,16 +134,6 @@ export function InvoicePreview({ invoice, customer, company, onEdit, onBack }: P
           >
             {busy === "gmail" ? "Preparing…" : "Email via Gmail"}
           </button>
-          {shareSupported && (
-            <button
-              onClick={sharePdf}
-              disabled={!!busy}
-              className="rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-              title="Open your device's share sheet (best on phone)"
-            >
-              {busy === "share" ? "Preparing…" : "Share…"}
-            </button>
-          )}
         </div>
       </div>
 
